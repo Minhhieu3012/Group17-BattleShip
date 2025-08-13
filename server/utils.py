@@ -1,0 +1,1 @@
+# Hàm hỗ trợ: gửi JSON, broadcast

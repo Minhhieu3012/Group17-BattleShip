@@ -1,1 +1,1 @@
-# Chạy server, accept, quản lý room 
+# Chạy server, khởi tạo socket, nhận kết nối 
