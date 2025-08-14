@@ -1,5 +1,4 @@
 # Board, Player, GameRoom (logic core)
-
 class Board:
     # Hàm khởi tạo 
     def __init__(self,size=10): # 10x10
