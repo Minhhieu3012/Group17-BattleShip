@@ -10,7 +10,7 @@ BattleShip là game chiến thuật 2 người chơi, mỗi phòng tối đa 2 n
 - Xử lý rớt kết nối (thông báo đối phương thắng hoặc cho phép reconnect).
 - Biến thể tùy chọn: Salvo, Radar (3×3), Double Shot, Shield, shapes khác (L-shape).
 
-## Kiến trúc tổng quan:
+## 🛠️ Kiến trúc tổng quan:
 - Server: TCP listener, map room_id -> GameRoom, mỗi client 1 thread, Lock khi chỉnh dữ liệu chung.
 - Client: 2 luồng (recv + input), hiển thị 2 bảng (own/enemy).
 
