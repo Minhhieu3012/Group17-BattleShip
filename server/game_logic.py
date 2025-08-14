@@ -1,22 +1,26 @@
 # Board, Player, GameRoom (logic core)
 
 class Board:
-    def __init__(self,size=10):
-        self.size=size
-        self.grid=[['~']*size for _ in range(size)]
-        self.ships=[]
-        self.hits=set()
+    # Hàm khởi tạo 
+    def __init__(self,size=10): # 10x10
+        self.size=size 
+        self.grid=[['~']*size for _ in range(size)] # tạo ma trận 2D, (~): biển
+        self.ships=[] # Mỗi tàu được lưu như một list các tọa độ (x,y)
+        self.hits=set() # Tập hợp các tọa độ đã bắn
     
+    # Hàm đặt tàu 
+    # x: cột, y: hàng, length: độ dài tàu, direction: 'H' (ngang) hoặc 'V' (dọc)
     def place_ship(self,x,y,length,direction):
         if direction=='H':
             if x + length > self.size:
                 return False
             for i in range(length):
-                if self.grid[y][x+i] != '~':
+                if self.grid[y][x+i] != '~': # Kiểm tra xem có chỗ đặt tàu không
                     return False
             for i in range(length):
-                self.grid[y][x+i] = 'S'
-            self.ships.append([(x+i,y) for i in range(length)])
+                self.grid[y][x+i] = 'S' # Đánh dấu tàu trên lưới
+            self.ships.append([(x+i,y) for i in range(length)]) # Lưu tọa độ tàu
+        # Nếu hướng là dọc
         else:
             if y + length > self.size:
                 return False
@@ -26,25 +30,27 @@ class Board:
             for i in range(length):
                 self.grid[y+i][x] = 'S'
             self.ships.append([(x,y+i) for i in range(length)])
-        return True
+        return True # Đặt tàu thành công
 
+    # Hàm nhận shot từ người chơi
     def receive_shot(self,x,y):
-        if(x,y) in self.hits:
+        if(x,y) in self.hits: # Đã bắn vào tọa độ này rồi
             return 'repeat'
-        self.hits.add((x,y))
+        self.hits.add((x,y)) # Đánh dấu tọa độ đã bắn
         if self.grid[y][x] == 'S':
-            self.grid[y][x] = 'X'
+            self.grid[y][x] = 'X' # Đánh dấu trúng tàu
             if self._is_ship_sunk(x,y):
                 return 'sunk'
-            return 'hit'
+            return 'hit' # Trúng tàu nhưng chưa chìm
         else:
-            self.grid[y][x] = 'O'
+            self.grid[y][x] = 'O' # Đánh dấu trúng biển
             return 'miss'
-    
+
+    # Hàm kiểm tra xem tàu có bị chìm không
     def _is_ship_sunk(self,x,y):
-        for ship in self.ships:
-            if(x,y) in ship: 
-                return all(self.grid[sy][sx] == 'X' for sx,sy in ship)
+        for ship in self.ships: # Duyệt qua từng tàu
+            if(x,y) in ship:  # Nếu tọa độ bắn trúng tàu
+                return all(self.grid[sy][sx] == 'X' for sx,sy in ship) # Kiểm tra xem tất cả các phần của tàu đã bị đánh chìm chưa
         return False
     
     def check_all_sunk(self):
