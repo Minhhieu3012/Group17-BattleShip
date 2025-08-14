@@ -55,3 +55,12 @@ class Board:
     
     def check_all_sunk(self):
         return all(all(self.grid[sy][sx] == 'X' for sx,sy in ship) for ship in self.ships)
+    
+class Player:
+    def __init__(self,name,conn):
+        self.name=name 
+        self.conn=conn # Kết nối mạng
+        self.board=Board() # Mỗi người chơi có một board riêng
+        self.ready=False # Trạng thái sẵn sàng
+
+
