@@ -40,3 +40,12 @@ class Board:
         else:
             self.grid[y][x] = 'O'
             return 'miss'
+    
+    def _is_ship_sunk(self,x,y):
+        for ship in self.ships:
+            if(x,y) in ship: 
+                return all(self.grid[sy][sx] == 'X' for sx,sy in ship)
+        return False
+    
+    def check_all_sunk(self):
+        return all(all(self.grid[sy][sx] == 'X' for sx,sy in ship) for ship in self.ships)
