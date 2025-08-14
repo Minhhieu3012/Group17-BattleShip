@@ -64,3 +64,18 @@ class Player:
         self.ready=False # Trạng thái sẵn sàng
 
 
+class GameRoom:
+    def __init__(self,room_id):
+        self.room_id=room_id
+        self.players=[] # Danh sách người chơi trong phòng
+        self.turn=0
+        self.started=False # Trạng thái trò chơi
+    
+    def add_player(self,player):
+        if len(self.players) < 2:
+            self.players.append(player)
+            return True
+        return False # Không thể thêm người chơi
+
+    def both_ready(self):
+        return len(self.players) == 2 and all(p.ready for p in self.players) # Kiểm tra xem cả hai người chơi đã sẵn sàng chưa
