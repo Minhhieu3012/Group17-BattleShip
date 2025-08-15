@@ -29,14 +29,14 @@ def handle_message(msg,player,room,conn):
     return player,room
 
 def join_room(msg,conn):
-    from game_logic import GameRoom
+    from game_logic import GameRoom # Nhập GameRoom tại đây để tránh lỗi vòng lặp nhập
     name=msg.get('name','Guest') # Lấy tên người chơi từ message
     room_id=msg.get('room_id') or str(uuid.uuid4()) # Lấy room_id từ message hoặc tạo mới
     with lock: # Sử dụng khóa để đồng bộ hóa truy cập vào rooms
         if room_id not in rooms:
             rooms[room_id]=GameRoom(room_id) # Tạo room mới nếu chưa có
         room=rooms[room_id] 
-        
+
     player=Player(name,conn) # Tạo player mới
     if not room.add_player(player):
         send_json(conn,{'action':'error','message':'Room is full or does not exist'})
@@ -46,4 +46,17 @@ def join_room(msg,conn):
    
     return player,room
 
-
+def handle_shoot(msg,player,room,conn):
+    shooter_idx=room.players.index(player) # Lấy chỉ số của người chơi trong danh sách
+    if shooter_idx != room.turn:
+        send_json(conn,{'action':'error','message':'Not your turn'})
+        return 
+    target_idx=1-shooter_idx # Chỉ số của người chơi còn lại
+    x,y=msg['x'],msg['y'] # Lấy tọa độ bắn từ message
+    result=room.players[target_idx].board.receive_shot(x,y) # Nhận kết quả bắn từ board của người chơi còn lại
+    broadcast_room(room,{'action':'shot_result','x':x,'y':y,'result':result,'by':player.name}) # Thông báo kết quả bắn
+    if room.players[target_idx].board.check_all_sunk():
+        broadcast_room(room,{'action':'game_over','winner':player.name})
+        room.started=False
+    else:
+        room.turn = target_idx # Chuyển lượt cho người chơi còn lại
