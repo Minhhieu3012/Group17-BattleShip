@@ -9,27 +9,31 @@ class Board:
     
     # Hàm đặt tàu 
     # x: cột, y: hàng, length: độ dài tàu, direction: 'H' (ngang) hoặc 'V' (dọc)
-    def place_ship(self,x,y,length,direction):
-        if direction=='H':
-            if x + length > self.size:
-                return False
-            for i in range(length):
-                if self.grid[y][x+i] != '~': # Kiểm tra xem có chỗ đặt tàu không
-                    return False
-            for i in range(length):
-                self.grid[y][x+i] = 'S' # Đánh dấu tàu trên lưới
-            self.ships.append([(x+i,y) for i in range(length)]) # Lưu tọa độ tàu
-        # Nếu hướng là dọc
+    def place_ship(self, x, y, length, direction):
+        if direction == 'H':
+            return self._place_ship_horizontal(x, y, length)
         else:
-            if y + length > self.size:
-                return False
-            for i in range(length):
-                if self.grid[y+i][x] != '~':
-                    return False
-            for i in range(length):
-                self.grid[y+i][x] = 'S'
-            self.ships.append([(x,y+i) for i in range(length)])
-        return True # Đặt tàu thành công
+            return self._place_ship_vertical(x, y, length)
+
+    def _place_ship_horizontal(self, x, y, length):
+        if x + length > self.size:
+            return False
+        if any(self.grid[y][x + i] != '~' for i in range(length)):
+            return False
+        for i in range(length):
+            self.grid[y][x + i] = 'S'
+        self.ships.append([(x + i, y) for i in range(length)])
+        return True
+
+    def _place_ship_vertical(self, x, y, length):
+        if y + length > self.size:
+            return False
+        if any(self.grid[y + i][x] != '~' for i in range(length)):
+            return False
+        for i in range(length):
+            self.grid[y + i][x] = 'S'
+        self.ships.append([(x, y + i) for i in range(length)])
+        return True
 
     # Hàm nhận shot từ người chơi
     def receive_shot(self,x,y):

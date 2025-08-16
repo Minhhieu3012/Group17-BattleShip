@@ -5,8 +5,8 @@ import json
 def send_json(conn,data):
     try:
         conn.sendall((json.dumps(data)+"\n").encode('utf-8')) # Chuyển đổi dữ liệu thành JSON và gửi
-    except:
-        pass
+    except Exception as e:
+        print(f"Error sending JSON: {e}")
 
 # Hàm broadcast dữ liệu đến tất cả người chơi trong phòng
 def broadcast_room(room,data):

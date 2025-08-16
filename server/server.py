@@ -19,10 +19,10 @@ def handle_client(conn,addr):
                 line,buffer=buffer.split("\n",1) # Tách từng dòng message
                 try:
                     msg=json.loads(line) # Chuyển đổi JSON thành dict
-                except:
+                except json.JSONDecodeError:
                     continue
                 player,room=handle_message(msg,player,room,conn) # Xử lý message từ client
-    except:
+    except Exception:
         pass
     finally:
         if player and room:
