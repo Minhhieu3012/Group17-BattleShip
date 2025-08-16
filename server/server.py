@@ -9,19 +9,19 @@ def handle_client(conn,addr):
     player=None
     room=None
     try:
-        buffer=""
+        buffer="" # Buffer để lưu dữ liệu nhận được
         while True:
             data=conn.recv(1024)
             if not data:
                 break 
-            buffer+=data.decode('utf-8')
+            buffer+=data.decode('utf-8') # Thêm dữ liệu vào buffer
             while "\n" in buffer:
                 line,buffer=buffer.split("\n",1) # Tách từng dòng message
                 try:
                     msg=json.loads(line) # Chuyển đổi JSON thành dict
                 except:
                     continue
-                player,room=handle_message(msg,player,room,conn)
+                player,room=handle_message(msg,player,room,conn) # Xử lý message từ client
     except:
         pass
     finally:
