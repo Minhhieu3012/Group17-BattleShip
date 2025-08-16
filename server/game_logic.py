@@ -15,16 +15,18 @@ class Board:
         else:
             return self._place_ship_vertical(x, y, length)
 
+    # Chiều ngang
     def _place_ship_horizontal(self, x, y, length):
-        if x + length > self.size:
+        if x + length > self.size: 
             return False
-        if any(self.grid[y][x + i] != '~' for i in range(length)):
+        if any(self.grid[y][x + i] != '~' for i in range(length)): # Kiểm tra xem có chỗ trống không
             return False
-        for i in range(length):
+        for i in range(length): 
             self.grid[y][x + i] = 'S'
-        self.ships.append([(x + i, y) for i in range(length)])
+        self.ships.append([(x + i, y) for i in range(length)]) # Lưu tọa độ tàu
         return True
 
+    # Chiều dọc 
     def _place_ship_vertical(self, x, y, length):
         if y + length > self.size:
             return False

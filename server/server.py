@@ -11,7 +11,7 @@ def handle_client(conn,addr):
     try:
         buffer="" # Buffer để lưu dữ liệu nhận được
         while True:
-            data=conn.recv(1024)
+            data=conn.recv(1024) # Nhận dữ liệu từ client qua socket
             if not data:
                 break 
             buffer+=data.decode('utf-8') # Thêm dữ liệu vào buffer
