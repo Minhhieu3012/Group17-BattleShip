@@ -13,18 +13,20 @@ class LobbyScreen:
 
         self.done = False
         self.next = None
-        self.selected_room = None
+        self.data = {}
 
     def handle_event(self, event):
         if self.create_button.handle_event(event):
-            self.send_queue.put({"action": "create_room", "user": self.username})
+            # chuyển sang màn hình tạo phòng
             self.done = True
-            self.next = "setup"
+            self.next = "create_room"
+            self.data = {"username": self.username}
 
         if self.join_button.handle_event(event):
-            self.send_queue.put({"action": "join_room", "user": self.username})
+            # chuyển sang màn hình join room
             self.done = True
-            self.next = "setup"
+            self.next = "join_room"
+            self.data = {"username": self.username}
 
     def update(self):
         pass
