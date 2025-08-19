@@ -105,22 +105,47 @@ class NetworkClient:
         if act == "start":
             get_state().set_started(True)
             get_state().set_turn(msg.get("turn"))
+            get_state().set_game_phase("battle")
             print("[INFO] Trận đấu bắt đầu! Lượt của:", msg.get("turn"), flush=True)
+            return
+
+        if act == "place_ship":
+            ok = msg.get("ok", False)
+            if ok:
+                print("[SUCCESS] Đặt tàu thành công!", flush=True)
+            else:
+                print("[ERROR] Không thể đặt tàu ở vị trí này!", flush=True)
             return
 
         if act == "shot_result":
             x, y = msg.get("x"), msg.get("y")
             result = msg.get("result")
             by = msg.get("by")
+            get_state().add_shot_result(x, y, result, by)
             print(f"[SHOT] {by} bắn ({x},{y}) => {result}", flush=True)
             return
 
+        if act == "turn_change":
+            new_turn = msg.get("turn")
+            get_state().set_turn(new_turn)
+            print(f"[TURN] Chuyển lượt cho người chơi {new_turn}", flush=True)
+            return
+
         if act == "game_over":
-            print(f"[GAME OVER] Người thắng: {msg.get('winner')}", flush=True)
+            winner = msg.get('winner')
+            get_state().set_winner(winner)
+            print(f"[GAME OVER] Người thắng: {winner}", flush=True)
+            return
+
+        if act == "opponent_left":
+            print("[INFO] Đối thủ đã rời khỏi phòng", flush=True)
+            get_state().set_opponent_left(True)
             return
 
         if act in ("error", "err"):
-            print(f"[FAIL] Lỗi từ server: {msg.get('message') or msg}", flush=True)
+            error_msg = msg.get('message') or str(msg)
+            get_state().set_last_error(error_msg)
+            print(f"[FAIL] Lỗi từ server: {error_msg}", flush=True)
             return
 
         # else: just raw log
@@ -189,7 +214,11 @@ class NetworkClient:
 
         # Sẵn sàng
         if act == "ready":
-            return {"action": "ready"}
+            payload = {"action": "ready"}
+            ships = ui_msg.get("ships", [])
+            if ships:
+                payload["ships"] = ships
+            return payload
 
         # Đặt tàu
         if act in ("place_ship", "place"):
@@ -223,7 +252,7 @@ class NetworkClient:
 # ---------- convenience API ----------
 _client_singleton: Optional[NetworkClient] = None
 
-def start_network(send_queue: Queue, host: str = "127.0.0.1", port: int = 5000) -> NetworkClient:
+def start_network(send_queue: Queue, host: str = "127.0.0.1", port: int = 8000) -> NetworkClient:
     client = NetworkClient(host, port, send_queue)
     if client.start():
         global _client_singleton

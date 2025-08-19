@@ -5,20 +5,24 @@ class Button:
         self.rect = pygame.Rect(x, y, w, h)
         self.text = text
         self.color = (70, 130, 180)
+        self.hover_color = (100, 160, 210)
         self.font = pygame.font.SysFont("Arial", 24)
+        self.hovered = False
 
     def draw(self, screen):
-        pygame.draw.rect(screen, self.color, self.rect)
+        color = self.hover_color if self.hovered else self.color
+        pygame.draw.rect(screen, color, self.rect)
         pygame.draw.rect(screen, (255, 255, 255), self.rect, 2)
         text_surf = self.font.render(self.text, True, (255, 255, 255))
         screen.blit(text_surf, text_surf.get_rect(center=self.rect.center))
 
     def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
+        if event.type == pygame.MOUSEMOTION:
+            self.hovered = self.rect.collidepoint(event.pos)
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.rect.collidepoint(event.pos):
                 return True
         return False
-
 
 class InputBox:
     def __init__(self, x, y, w, h, text=''):
@@ -43,21 +47,22 @@ class InputBox:
         if event.type == pygame.KEYDOWN:
             if self.active:
                 if event.key == pygame.K_RETURN:
-                    pass  # không xử lý Enter ở đây
+                    return self.text  # Return text on Enter
                 elif event.key == pygame.K_BACKSPACE:
                     self.text = self.text[:-1]
                 else:
                     self.text += event.unicode
-                # Render lại text
+                # Re-render the text
                 self.txt_surface = self.font.render(self.text, True, self.color)
+        return None
 
     def update(self):
-        # Resize nếu text dài
+        # Resize the box if the text is too long
         width = max(200, self.txt_surface.get_width()+10)
         self.rect.w = width
 
     def draw(self, screen):
-        # Vẽ text
+        # Blit the text
         screen.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
-        # Vẽ box
+        # Blit the rect
         pygame.draw.rect(screen, self.color, self.rect, 2)
