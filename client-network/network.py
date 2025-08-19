@@ -1,91 +1,234 @@
-# network.py
+# network.py — client mạng (JSON line) khớp handlers.py
+# Server chấp nhận 4 action: join, place_ship, ready, shoot
 import socket
 import threading
 import json
-from queue import Queue
+from queue import Queue, Empty
+from typing import Optional, Dict, Any
+
+from state import get_state
+
+LINE_END = "\n"
+
+def _log(*args):
+    print("[NET]", *args, flush=True)
 
 class NetworkClient:
-    def __init__(self, host='127.0.0.1', port=5000):
+    """TCP client gửi/nhận JSON theo dòng và CHUYỂN action UI -> action server."""
+    def __init__(self, host: str, port: int, send_queue: Queue):
         self.host = host
         self.port = port
-        self.sock = None
-        self.connected = False
-        # Queue để main_thread gửi dữ liệu cho network_thread
-        self.send_queue = Queue()
-        # Queue để network_thread gửi dữ liệu nhận được cho main_thread
-        self.recv_queue = Queue()
+        self.send_queue = send_queue
+        self.sock: Optional[socket.socket] = None
+        self._stop = threading.Event()
+        self._recv_thread: Optional[threading.Thread] = None
+        self._send_thread: Optional[threading.Thread] = None
+        self._buffer = ""
 
-    def connect(self):
-        """Khởi tạo kết nối và các luồng gửi/nhận."""
+    # ------------- lifecycle -------------
+    def start(self, timeout: float = 5.0) -> bool:
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.settimeout(timeout)
             self.sock.connect((self.host, self.port))
-            self.connected = True
-            
-            # Bắt đầu luồng nhận dữ liệu từ server
-            self.recv_thread = threading.Thread(target=self._receive_loop, daemon=True)
-            self.recv_thread.start()
-
-            # Bắt đầu luồng gửi dữ liệu tới server
-            self.send_thread = threading.Thread(target=self._send_loop, daemon=True)
-            self.send_thread.start()
-            
-            print("Connected to server.")
-            return True
+            self.sock.settimeout(None)
+            get_state().set_connected(True)
+            _log(f"Connected to server at {self.host}:{self.port}")
         except Exception as e:
-            print(f"Failed to connect: {e}")
+            get_state().set_connected(False)
+            print("[ERROR] Could not connect to server:", e, flush=True)
             return False
 
-    def disconnect(self):
-        """Đóng kết nối."""
-        if self.connected:
-            self.connected = False
-            self.sock.close()
-            print("Disconnected from server.")
+        self._recv_thread = threading.Thread(target=self._recv_loop, name="recv_thread", daemon=True)
+        self._send_thread = threading.Thread(target=self._send_loop, name="send_thread", daemon=True)
+        self._recv_thread.start()
+        self._send_thread.start()
+        return True
 
-    def _receive_loop(self):
-        """
-        Luồng này (recv_thread) liên tục lắng nghe dữ liệu từ server.
-        Dữ liệu được parse theo dòng và đưa vào recv_queue.
-        """
-        buffer = ""
-        while self.connected:
+    def stop(self):
+        self._stop.set()
+        try:
+            if self.sock:
+                self.sock.shutdown(socket.SHUT_RDWR)
+        except Exception:
+            pass
+        try:
+            if self.sock:
+                self.sock.close()
+        except Exception:
+            pass
+
+    # ------------- receive -------------
+    def _recv_loop(self):
+        while not self._stop.is_set():
             try:
-                data = self.sock.recv(1024).decode('utf-8')
+                data = self.sock.recv(4096)
                 if not data:
-                    # Server đã đóng kết nối
-                    self.recv_queue.put({"action": "server_disconnect"})
+                    _log("Server closed connection.")
+                    get_state().set_connected(False)
                     break
-                
-                buffer += data
-                while "\n" in buffer:
-                    line, buffer = buffer.split("\n", 1)
-                    if line:
+                self._buffer += data.decode("utf-8", errors="ignore")
+                while "\n" in self._buffer:
+                    line, self._buffer = self._buffer.split("\n", 1)
+                    if not line.strip():
+                        continue
+                    try:
                         msg = json.loads(line)
-                        self.recv_queue.put(msg)
-            except (ConnectionResetError, BrokenPipeError):
-                self.recv_queue.put({"action": "server_disconnect"})
-                break
-            except json.JSONDecodeError as e:
-                print(f"JSON decode error: {e} in line: '{line}'")
-            except Exception as e:
-                print(f"Receive loop error: {e}")
-                break
-        self.disconnect()
+                    except json.JSONDecodeError:
+                        print("[WARN] Received non-JSON line:", line, flush=True)
+                        continue
 
-    def _send_loop(self):
-        """
-        Luồng này lấy các message từ send_queue và gửi chúng tới server.
-        """
-        while self.connected:
-            try:
-                data_to_send = self.send_queue.get() # Lấy message từ queue (blocking)
-                if data_to_send is None: # Tín hiệu để dừng
-                    break
-                
-                json_data = json.dumps(data_to_send) + "\n"
-                self.sock.sendall(json_data.encode('utf-8'))
+                    get_state().buffered_messages.put(msg)
+                    self._handle_server_event(msg)
             except Exception as e:
-                print(f"Send loop error: {e}")
-                break
-        self.disconnect()
+                if not self._stop.is_set():
+                    print("[ERROR] recv_loop:", e, flush=True)
+                    get_state().set_connected(False)
+                    break
+
+    def _handle_server_event(self, msg: Dict[str, Any]):
+        act = msg.get("action")
+
+        if act == "join":
+            rid = msg.get("room_id")
+            get_state().set_room(rid)
+            get_state().set_joined(True)
+            print(f"[SUCCESS] Tham gia phòng thành công. room_id={rid}", flush=True)
+            return
+
+        if act == "player_list":
+            players = msg.get("players", [])
+            get_state().set_players(players)
+            print(f"[INFO] Người chơi trong phòng: {players}", flush=True)
+            return
+
+        if act == "start":
+            get_state().set_started(True)
+            get_state().set_turn(msg.get("turn"))
+            print("[INFO] Trận đấu bắt đầu! Lượt của:", msg.get("turn"), flush=True)
+            return
+
+        if act == "shot_result":
+            x, y = msg.get("x"), msg.get("y")
+            result = msg.get("result")
+            by = msg.get("by")
+            print(f"[SHOT] {by} bắn ({x},{y}) => {result}", flush=True)
+            return
+
+        if act == "game_over":
+            print(f"[GAME OVER] Người thắng: {msg.get('winner')}", flush=True)
+            return
+
+        if act in ("error", "err"):
+            print(f"[FAIL] Lỗi từ server: {msg.get('message') or msg}", flush=True)
+            return
+
+        # else: just raw log
+        print("[RECV]", msg, flush=True)
+
+    # ------------- send -------------
+    def _send_loop(self):
+        while not self._stop.is_set():
+            try:
+                ui_msg = self.send_queue.get(timeout=0.2)
+            except Empty:
+                continue
+
+            if not isinstance(ui_msg, dict):
+                print("[WARN] Bỏ qua payload không phải dict:", ui_msg, flush=True)
+                continue
+
+            payload = self._translate_ui_action(ui_msg)
+            if not payload:
+                # e.g., login -> local only
+                continue
+
+            try:
+                raw = json.dumps(payload, ensure_ascii=False) + LINE_END
+                self.sock.sendall(raw.encode("utf-8"))
+            except Exception as e:
+                print("[ERROR] Failed to send payload:", e, flush=True)
+                continue
+
+            a = payload.get("action")
+            if a == "join":
+                rid = payload.get("room_id")
+                if rid:
+                    print(f"[INFO] Gửi yêu cầu vào phòng: {rid}", flush=True)
+                else:
+                    print("[INFO] Gửi yêu cầu tạo phòng mới (join không kèm room_id)", flush=True)
+            elif a == "ready":
+                print("[INFO] Gửi trạng thái sẵn sàng.", flush=True)
+            elif a == "place_ship":
+                print("[INFO] Gửi đặt tàu:", {k: payload.get(k) for k in ("x","y","length","dir")}, flush=True)
+            elif a == "shoot":
+                print("[INFO] Gửi lệnh bắn:", (payload.get("x"), payload.get("y")), flush=True)
+
+    # ------------- translate UI -> server -------------
+    def _translate_ui_action(self, ui_msg: Dict[str, Any]):
+        """Chuẩn hoá payload UI thành 1 trong các action: join, place_ship, ready, shoot."""
+        act = ui_msg.get("action")
+        name = ui_msg.get("name") or ui_msg.get("username") or ui_msg.get("user")
+        room_id = ui_msg.get("room_id") or ui_msg.get("room") or ui_msg.get("code")
+
+        # Lưu tên local, không gửi action 'login' lên server (server không có 'login')
+        if act in ("login", "signin"):
+            if name:
+                get_state().set_name(name)
+                print(f"[INFO] Đăng nhập local: name={name} (không gửi server)", flush=True)
+            return None
+
+        # Tạo/Tham gia phòng -> 'join'
+        if act in ("create_room", "join_room", "join"):
+            payload = {"action": "join"}
+            if name:
+                payload["name"] = name
+            if room_id:
+                payload["room_id"] = str(room_id)
+            return payload
+
+        # Sẵn sàng
+        if act == "ready":
+            return {"action": "ready"}
+
+        # Đặt tàu
+        if act in ("place_ship", "place"):
+            x = ui_msg.get("x")
+            y = ui_msg.get("y")
+            length = ui_msg.get("length") or ui_msg.get("len") or ui_msg.get("size")
+            direction = ui_msg.get("dir") or ui_msg.get("direction") or ui_msg.get("orient") or ui_msg.get("orientation")
+            pos = ui_msg.get("pos")
+            if pos and (x is None or y is None):
+                try:
+                    y, x = int(pos[0]), int(pos[1])  # row, col -> y, x
+                except Exception:
+                    pass
+            return {"action": "place_ship", "x": x, "y": y, "length": length, "dir": direction}
+
+        # Bắn
+        if act in ("attack", "shoot", "fire"):
+            x = ui_msg.get("x")
+            y = ui_msg.get("y")
+            pos = ui_msg.get("pos")
+            if pos and (x is None or y is None):
+                try:
+                    y, x = int(pos[0]), int(pos[1])
+                except Exception:
+                    pass
+            return {"action": "shoot", "x": x, "y": y}
+
+        print("[WARN] Bỏ qua action UI không hỗ trợ:", act, ui_msg, flush=True)
+        return None
+
+# ---------- convenience API ----------
+_client_singleton: Optional[NetworkClient] = None
+
+def start_network(send_queue: Queue, host: str = "127.0.0.1", port: int = 5000) -> NetworkClient:
+    client = NetworkClient(host, port, send_queue)
+    if client.start():
+        global _client_singleton
+        _client_singleton = client
+    return client
+
+def get_state_proxy():
+    return get_state()
