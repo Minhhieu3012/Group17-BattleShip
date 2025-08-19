@@ -45,7 +45,7 @@ class SetupScreen:
                     "rect": rect,
                     "length": length,
                     "placed": False,
-                    "grid_pos": None
+                    "grid_pos": None,
                 })
 
         # Dragging
@@ -58,9 +58,24 @@ class SetupScreen:
 
     def handle_event(self, event):
         if self.ready_button.handle_event(event):
-            self.send_queue.put({"action": "ready", "user": self.username})
+            placed_ships = []
+            for ship in self.ships:
+                if ship["placed"]:
+                    placed_ships.append({
+                        "length": ship["length"],
+                        "pos": ship["grid_pos"],   # (row, col)
+                        "orientation": "H"         # hiện giờ chỉ ngang
+                    })
+
+            self.placed_ships = placed_ships   # <--- Lưu lại để BattleScreen dùng
+            self.send_queue.put({
+                "action": "ready",
+                "user": self.username,
+                "ships": placed_ships
+            })
             self.done = True
             self.next = "battle"
+
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             for ship in self.ships:

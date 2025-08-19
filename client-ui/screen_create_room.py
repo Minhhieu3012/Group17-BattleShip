@@ -15,7 +15,7 @@ class CreateRoomScreen:
         self.back_button = Button(250, 400, 300, 50, "Continue")
 
         self.done = False
-        self.next = None
+        self.next = "None"
 
     def handle_event(self, event):
         if self.back_button.handle_event(event):

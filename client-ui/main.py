@@ -45,7 +45,10 @@ while running:
             current_screen = SetupScreen(screen, send_queue, username)
 
         elif current_screen.next == "battle":
-            current_screen = BattleScreen(screen, send_queue, username)
+            current_screen = BattleScreen(
+        screen, send_queue, username, current_screen.placed_ships
+    )
+
 
     clock.tick(30)
 

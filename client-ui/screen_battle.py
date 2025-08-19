@@ -1,10 +1,11 @@
 import pygame
 
 class BattleScreen:
-    def __init__(self, screen, send_queue, username):
+    def __init__(self, screen, send_queue, username, my_ships):
         self.screen = screen
         self.send_queue = send_queue
         self.username = username
+        self.my_ships = my_ships   # ✅ danh sách tàu lấy từ SetupScreen
         self.font = pygame.font.SysFont("Arial", 28)
         self.big_font = pygame.font.SysFont("Arial", 48, bold=True)
 
@@ -18,7 +19,7 @@ class BattleScreen:
 
         self.done = False
         self.next = None
-        self.winner = "me"  # None = chưa xong, "me" = mình thắng, "enemy" = thua
+        self.winner = None # None = chưa xong, "me" = mình thắng, "enemy" = thua
 
         # Button rects (để dễ xử lý click)
         self.play_again_btn = pygame.Rect(220, 380, 160, 50)
@@ -78,6 +79,19 @@ class BattleScreen:
                     self.cell_size
                 )
                 pygame.draw.rect(self.screen, (0, 150, 255), rect, 1)
+        # Vẽ tàu của mình lên lưới
+        for ship in self.my_ships:
+            row, col = ship["pos"]
+            length = ship["length"]
+            for i in range(length):
+                rect = pygame.Rect(
+                    self.my_origin[0] + (col + i) * self.cell_size,
+                    self.my_origin[1] + row * self.cell_size,
+                    self.cell_size,
+                    self.cell_size
+                )
+                pygame.draw.rect(self.screen, (100, 200, 100), rect)  # xanh lá cho tàu
+                pygame.draw.rect(self.screen, (0, 100, 0), rect, 2)   # viền
 
         # Vẽ lưới đối thủ
         for row in range(self.my_grid_size):
@@ -89,37 +103,34 @@ class BattleScreen:
                     self.cell_size
                 )
                 pygame.draw.rect(self.screen, (255, 100, 100), rect, 1)
-        # Khi game kết thúc -> vẽ nút
+
+        # Khi game kết thúc -> vẽ overlay + nút
         if self.winner is not None:
-            # Tạo lớp phủ bán trong suốt
             overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 180))  # RGBA: màu đen, alpha=180/255 -> hơi trong suốt
+            overlay.fill((0, 0, 0, 180))
             self.screen.blit(overlay, (0, 0))
 
-            # Thông báo kết quả
             if self.winner == "me":
                 msg = self.big_font.render("YOU WIN!", True, (0, 255, 0))
             else:
                 msg = self.big_font.render("YOU LOSE!", True, (255, 50, 50))
 
-            # canh giữa
             msg_rect = msg.get_rect(center=(self.screen.get_width()//2, 300))
             self.screen.blit(msg, msg_rect)
 
-            # Vẽ nút Play Again
             pygame.draw.rect(self.screen, (0, 200, 0), self.play_again_btn)
             play_text = self.font.render("Play Again", True, (255, 255, 255))
             play_rect = play_text.get_rect(center=self.play_again_btn.center)
             self.screen.blit(play_text, play_rect)
 
-            # Vẽ nút Exit
             pygame.draw.rect(self.screen, (200, 0, 0), self.exit_btn)
             exit_text = self.font.render("Exit", True, (255, 255, 255))
             exit_rect = exit_text.get_rect(center=self.exit_btn.center)
             self.screen.blit(exit_text, exit_rect)
 
+        # 🔑 luôn luôn flip ở cuối
+        pygame.display.flip()
 
-            pygame.display.flip()
 
     def set_winner(self, winner: str):
         """winner = 'me' hoặc 'enemy'"""
