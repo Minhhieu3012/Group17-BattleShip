@@ -13,7 +13,7 @@ class SetupScreen:
         self.font = pygame.font.SysFont("Arial", 28)
         self.small_font = pygame.font.SysFont("Arial", 20)
 
-        self.ready_button = Button(300, 500, 200, 50, "Sẵn sàng")
+        self.ready_button = Button(300, 500, 200, 50, "Ready")
 
         # Grid
         self.grid_size = 10
@@ -87,7 +87,7 @@ class SetupScreen:
                     "ships": placed_ships
                 })
                 self.ready_sent = True
-                self.status_message = "Đã gửi trạng thái sẵn sàng, đang chờ đối thủ..."
+                self.status_message = "Sent ready status, waiting for opponent..."
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             for ship in self.ships:
@@ -163,15 +163,15 @@ class SetupScreen:
         # Update status based on players ready
         players = game_state.get_players()
         if len(players) < 2:
-            self.status_message = "Đang chờ người chơi thứ hai..."
+            self.status_message = "Waiting for second player..."
         elif self.ready_sent:
-            self.status_message = "Đã sẵn sàng, đang chờ đối thủ..."
+            self.status_message = "Sent ready status, waiting for opponent..."
 
     def draw(self):
         self.screen.fill((30, 30, 60))
 
         # Title
-        title = self.font.render(f"Bố trí tàu - {self.username}", True, (255, 255, 255))
+        title = self.font.render(f"Ship layout - {self.username}", True, (255, 255, 255))
         self.screen.blit(title, (250, 30))
 
         # Grid
@@ -192,8 +192,8 @@ class SetupScreen:
 
         # Instructions
         instructions = [
-            "Kéo thả tàu vào lưới",
-            f"Đặt tất cả {len(self.ships)} tàu để sẵn sàng"
+            "Drag and drop ships onto the grid",
+            f"Place all {len(self.ships)} ships to get ready"
         ]
         
         for i, instruction in enumerate(instructions):
@@ -204,14 +204,14 @@ class SetupScreen:
         all_placed = all(ship["placed"] for ship in self.ships)
         if all_placed and not self.ready_sent:
             self.ready_button.color = (0, 150, 0)
-            self.ready_button.text = "Sẵn sàng"
+            self.ready_button.text = "Ready"
         elif self.ready_sent:
             self.ready_button.color = (100, 100, 100)
-            self.ready_button.text = "Đã sẵn sàng"
+            self.ready_button.text = "Ready"
         else:
             self.ready_button.color = (100, 100, 100)
-            self.ready_button.text = "Đặt hết tàu"
-        
+            self.ready_button.text = "Place all ships"
+
         self.ready_button.draw(self.screen)
 
         # Status message
@@ -224,7 +224,7 @@ class SetupScreen:
         game_state = get_state()
         players = game_state.get_players()
         if len(players) > 0:
-            player_info = self.small_font.render(f"Người chơi: {', '.join(players)}", True, (150, 150, 150))
+            player_info = self.small_font.render(f"Players: {', '.join(players)}", True, (150, 150, 150))
             self.screen.blit(player_info, (50, 60))
 
         pygame.display.flip()
