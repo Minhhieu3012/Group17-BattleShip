@@ -42,6 +42,16 @@ class SetupScreen:
         start_y = 100
         gap = 15
 
+        # Lưu thông tin dock để vẽ hướng dẫn
+        self.dock_x = start_x
+        self.dock_y = start_y
+        self.dock_gap = gap
+        self.dock_end_y = (
+            self.dock_y
+            + len(self.ships_data) * self.cell_size
+            + (len(self.ships_data) - 1) * self.dock_gap
+        )
+
         for idx, ship_data in enumerate(self.ships_data):
             length = ship_data["length"]
             img = load_asset_image(
@@ -199,18 +209,20 @@ class SetupScreen:
                 )
                 pygame.draw.rect(self.screen, (100, 150, 200), rect, 1)
 
-        # Vẽ tàu (ảnh) — KHÔNG viền
+        # Vẽ tàu (ảnh)
         for ship in self.ships:
             self.screen.blit(ship["image"], ship["rect"])
 
-        # Hướng dẫn
+        # Hướng dẫn — hiển thị dưới các thuyền
         instructions = [
             "Drag and drop ships onto the grid",
             f"Place all {len(self.ships)} ships to get ready"
         ]
+        instr_x = self.dock_x
+        instr_y = self.dock_end_y + 20
         for i, instruction in enumerate(instructions):
             text = self.small_font.render(instruction, True, (200, 200, 200))
-            self.screen.blit(text, (450, 200 + i * 25))
+            self.screen.blit(text, (instr_x, instr_y + i * 22))
 
         # Ready button
         all_placed = all(ship["placed"] for ship in self.ships)
