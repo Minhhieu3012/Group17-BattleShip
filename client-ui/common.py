@@ -1,4 +1,29 @@
 import pygame
+from pathlib import Path
+
+# ====== Asset utils (đường dẫn ảnh) ======
+_ASSETS_DIR = Path(__file__).resolve().parent / "images"
+
+def asset_path(filename: str) -> Path:
+    # Trả về path tuyệt đối tới ảnh trong thư mục client-ui/images
+    return _ASSETS_DIR / filename
+
+def load_asset_image(filename: str, size=None) -> pygame.Surface:
+    """
+    Load ảnh từ thư mục images, có thể scale về kích thước 'size' (w, h).
+    Nếu thiếu file, tạo surface fallback để không crash.
+    """
+    try:
+        img = pygame.image.load(str(asset_path(filename))).convert_alpha()
+        if size:
+            img = pygame.transform.smoothscale(img, size)
+        return img
+    except Exception:
+        # Fallback: khối màu (không viền) để tránh lỗi thiếu file
+        w, h = size if size else (60, 30)
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        surf.fill((120, 120, 120, 220))
+        return surf
 
 class Button:
     def __init__(self, x, y, w, h, text):

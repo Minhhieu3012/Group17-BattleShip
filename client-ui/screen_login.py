@@ -1,9 +1,5 @@
-# screen_login.py
 import pygame
 from common import Button, InputBox
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'client-network'))
 from state import get_state
 
 class LoginScreen:
@@ -43,9 +39,13 @@ class LoginScreen:
         # Update connection status
         game_state = get_state()
         if game_state.get_connected():
-            self.connection_status = "Kết nối thành công"
+            self.connection_status = "Connection successful"
         else:
-            self.connection_status = "Đang kết nối tới server..."
+            error = game_state.get_connection_error()
+            if error:
+                self.connection_status = f"Connection error: {error}"
+            else:
+                self.connection_status = "Connecting to server..."
 
     def draw(self):
         self.screen.fill((30, 30, 60))
@@ -54,14 +54,20 @@ class LoginScreen:
         title_rect = title.get_rect(center=(400, 100))
         self.screen.blit(title, title_rect)
         
-        label = self.font.render("Nhập tên của bạn:", True, (255, 255, 255))
-        self.screen.blit(label, (280, 200))
+        label = self.font.render("Enter your name:", True, (255, 255, 255))
+        self.screen.blit(label, (300, 200))
         
         self.input_box.draw(self.screen)
         self.start_button.draw(self.screen)
         
         # Connection status
-        status_color = (0, 255, 0) if "thành công" in self.connection_status else (255, 255, 0)
+        if "error" in self.connection_status.lower():
+            status_color = (255, 0, 0)
+        elif "successful" in self.connection_status.lower():
+            status_color = (0, 255, 0)
+        else:
+            status_color = (255, 255, 0)
+            
         status_text = self.small_font.render(self.connection_status, True, status_color)
         status_rect = status_text.get_rect(center=(400, 450))
         self.screen.blit(status_text, status_rect)

@@ -1,8 +1,5 @@
 import pygame
 from common import Button, InputBox
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'client-network'))
 from state import get_state
 
 class JoinRoomScreen:
@@ -14,8 +11,8 @@ class JoinRoomScreen:
         self.small_font = pygame.font.SysFont("Arial", 20)
 
         self.input_box = InputBox(250, 270, 300, 50)
-        self.join_button = Button(250, 350, 300, 50, "Tham gia")
-        self.back_button = Button(250, 420, 300, 50, "Quay lại")
+        self.join_button = Button(250, 350, 300, 50, "Join")
+        self.back_button = Button(250, 420, 300, 50, "Back")
 
         self.done = False
         self.next = None
@@ -37,7 +34,7 @@ class JoinRoomScreen:
 
     def _join_room(self, code):
         self.send_queue.put({"action": "join_room", "name": self.username, "room_id": code})
-        self.error_message = "Đang tham gia phòng..."
+        self.error_message = "Joining room..."
 
     def update(self):
         self.input_box.update()
@@ -50,16 +47,16 @@ class JoinRoomScreen:
         error = game_state.get_last_error()
         if error:
             if "full" in error.lower():
-                self.error_message = "Phòng đã đầy!"
-            elif "not exist" in error.lower():
-                self.error_message = "Phòng không tồn tại!"
+                self.error_message = "Room is full!"
+            elif "not exist" in error.lower() or "not found" in error.lower():
+                self.error_message = "Room does not exist!"
             else:
                 self.error_message = error
 
     def draw(self):
         self.screen.fill((50, 50, 100))
         
-        title = self.font.render("Nhập mã phòng:", True, (255, 255, 255))
+        title = self.font.render("Enter Room Code:", True, (255, 255, 255))
         title_rect = title.get_rect(center=(400, 220))
         self.screen.blit(title, title_rect)
         
@@ -68,7 +65,7 @@ class JoinRoomScreen:
         self.back_button.draw(self.screen)
         
         if self.error_message:
-            color = (255, 0, 0) if "lỗi" in self.error_message.lower() or "đầy" in self.error_message.lower() or "không" in self.error_message.lower() else (255, 255, 0)
+            color = (255, 0, 0) if any(word in self.error_message.lower() for word in ["error", "full", "exist"]) else (255, 255, 0)
             error_text = self.small_font.render(self.error_message, True, color)
             error_rect = error_text.get_rect(center=(400, 500))
             self.screen.blit(error_text, error_rect)

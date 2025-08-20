@@ -1,8 +1,5 @@
 import pygame
-from common import Button
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'client-network'))
+from common import Button, load_asset_image
 from state import get_state
 
 class SetupScreen:
@@ -14,22 +11,32 @@ class SetupScreen:
         self.small_font = pygame.font.SysFont("Arial", 20)
 
         self.ready_button = Button(300, 500, 200, 50, "Ready")
+        self.back_button = Button(520, 500, 200, 50, "Back")
 
         # Grid
         self.grid_size = 10
         self.cell_size = 35
         self.grid_origin = (50, 100)
 
-        # Predefined ships (simplified - just rectangles with colors)
-        # Predefined ships (giờ dùng ảnh thay vì màu)
+        # Danh sách tàu (ngang) theo độ dài
         self.ships_data = [
-            {"length": 2, "image": "images/image1.png"},
-            {"length": 3, "image": "images/image2.png"},
-            {"length": 3, "image": "images/image3.png"},
-            {"length": 4, "image": "images/image4.png"},
-            {"length": 5, "image": "images/image5.png"},
+            {"length": 2},  # image1.png
+            {"length": 3},  # image2.png
+            {"length": 3},  # image3.png
+            {"length": 4},  # image4.png
+            {"length": 5},  # image5.png
         ]
 
+        # Tên file ảnh khớp với danh sách trên
+        self.ship_image_files = [
+            "image1.png",
+            "image2.png",
+            "image3.png",
+            "image4.png",
+            "image5.png",
+        ]
+        
+        # Khởi tạo object tàu để kéo/thả
         self.ships = []
         start_x = self.grid_origin[0] + self.grid_size * self.cell_size + 50
         start_y = 100
@@ -37,12 +44,10 @@ class SetupScreen:
 
         for idx, ship_data in enumerate(self.ships_data):
             length = ship_data["length"]
-            img_path = ship_data["image"]
-            # Load image
-            raw_img = pygame.image.load(img_path).convert_alpha()
-            # Scale theo chiều dài tàu (ngang)
-            img = pygame.transform.scale(raw_img, (length * self.cell_size, self.cell_size))
-
+            img = load_asset_image(
+                self.ship_image_files[idx],
+                size=(length * self.cell_size, self.cell_size)
+            )
             rect = img.get_rect()
             rect.topleft = (start_x, start_y + idx * (self.cell_size + gap))
 
@@ -66,31 +71,19 @@ class SetupScreen:
         
         self.ready_sent = False
         self.status_message = ""
+        self.error_message = ""
 
     def handle_event(self, event):
-        if self.ready_button.handle_event(event):
-            if not self.ready_sent:
-                placed_ships = []
-                for ship in self.ships:
-                    if ship["placed"]:
-                        row, col = ship["grid_pos"]
-                        placed_ships.append({
-                            "length": ship["length"],
-                            "pos": (row, col),   # (row, col)
-                            "orientation": "H"         # hiện giờ chỉ ngang
-                        })
-
-                self.placed_ships = placed_ships   # <--- Lưu lại để BattleScreen dùng
-                self.send_queue.put({
-                    "action": "ready",
-                    "name": self.username,
-                    "ships": placed_ships
-                })
-                self.ready_sent = True
-                self.status_message = "Sent ready status, waiting for opponent..."
+        if self.ready_button.handle_event(event) and not self.ready_sent:
+            self._send_ready()
+            
+        if self.back_button.handle_event(event):
+            self.done = True
+            self.next = "lobby"
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            for ship in self.ships:
+            # Bắt đầu kéo tàu
+            for ship in reversed(self.ships):  # ưu tiên tàu trên cùng
                 if ship["rect"].collidepoint(event.pos):
                     self.dragging_ship = ship
                     mx, my = event.pos
@@ -100,50 +93,7 @@ class SetupScreen:
 
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             if self.dragging_ship:
-                mx, my = event.pos
-
-                # --- LẤY TỌA ĐỘ GÓC TRÁI TRÊN ---
-                ship_x, ship_y = self.dragging_ship["rect"].topleft
-
-                # Tính col/row theo góc trái trên
-                col = round((ship_x - self.grid_origin[0]) / self.cell_size)
-                row = round((ship_y - self.grid_origin[1]) / self.cell_size)
-
-                length = self.dragging_ship["length"]
-
-                # --- KIỂM TRA HỢP LỆ ---
-                if (0 <= col <= self.grid_size - length
-                        and 0 <= row < self.grid_size):
-                    # Check for overlaps with other placed ships
-                    collision = False
-                    for other_ship in self.ships:
-                        if other_ship != self.dragging_ship and other_ship["placed"]:
-                            other_row, other_col = other_ship["grid_pos"]
-                            other_length = other_ship["length"]
-                            # Check horizontal overlap
-                            if row == other_row:
-                                if not (col >= other_col + other_length or col + length <= other_col):
-                                    collision = True
-                                    break
-                    
-                    if not collision:
-                        # Snap đúng vào grid
-                        snap_x = self.grid_origin[0] + col * self.cell_size
-                        snap_y = self.grid_origin[1] + row * self.cell_size
-                        self.dragging_ship["rect"].topleft = (snap_x, snap_y)
-                        self.dragging_ship["placed"] = True
-                        self.dragging_ship["grid_pos"] = (row, col)  # góc trái trên
-                    else:
-                        # Return to original position if collision
-                        self.dragging_ship["rect"].topleft = self.dragging_ship["original_pos"]
-                        self.dragging_ship["placed"] = False
-                        self.dragging_ship["grid_pos"] = None
-                else:
-                    # Return to original position if invalid placement
-                    self.dragging_ship["rect"].topleft = self.dragging_ship["original_pos"]
-                    self.dragging_ship["placed"] = False
-                    self.dragging_ship["grid_pos"] = None
-
+                self._handle_ship_placement()
                 self.dragging_ship = None
 
         elif event.type == pygame.MOUSEMOTION:
@@ -152,29 +102,93 @@ class SetupScreen:
                 self.dragging_ship["rect"].x = mx + self.offset_x
                 self.dragging_ship["rect"].y = my + self.offset_y
 
+    def _send_ready(self):
+        # Gom danh sách tàu đã đặt lên lưới
+        placed_ships = []
+        for ship in self.ships:
+            if ship["placed"]:
+                row, col = ship["grid_pos"]
+                placed_ships.append({
+                    "length": ship["length"],
+                    "pos": (row, col),
+                    "orientation": "H"  # phiên bản đơn giản: nằm ngang
+                })
+
+        self.placed_ships = placed_ships
+        self.send_queue.put({
+            "action": "ready",
+            "name": self.username,
+            "ships": placed_ships
+        })
+        self.ready_sent = True
+        self.status_message = "Ready signal sent, waiting for opponent..."
+
+    def _handle_ship_placement(self):
+        # Snap tàu vào lưới nếu hợp lệ
+        ship_x, ship_y = self.dragging_ship["rect"].topleft
+        col = round((ship_x - self.grid_origin[0]) / self.cell_size)
+        row = round((ship_y - self.grid_origin[1]) / self.cell_size)
+        length = self.dragging_ship["length"]
+
+        if (0 <= col <= self.grid_size - length and 0 <= row < self.grid_size):
+            # Kiểm tra va chạm với các tàu đã đặt (ngang)
+            collision = False
+            for other_ship in self.ships:
+                if other_ship is self.dragging_ship or not other_ship["placed"]:
+                    continue
+                other_row, other_col = other_ship["grid_pos"]
+                other_len = other_ship["length"]
+                if row == other_row:
+                    if not (col >= other_col + other_len or col + length <= other_col):
+                        collision = True
+                        break
+
+            if not collision:
+                snap_x = self.grid_origin[0] + col * self.cell_size
+                snap_y = self.grid_origin[1] + row * self.cell_size
+                self.dragging_ship["rect"].topleft = (snap_x, snap_y)
+                self.dragging_ship["placed"] = True
+                self.dragging_ship["grid_pos"] = (row, col)
+            else:
+                self._reset_ship_position()
+        else:
+            self._reset_ship_position()
+
+    def _reset_ship_position(self):
+        # Trả tàu về vị trí ban đầu nếu đặt sai
+        self.dragging_ship["rect"].topleft = self.dragging_ship["original_pos"]
+        self.dragging_ship["placed"] = False
+        self.dragging_ship["grid_pos"] = None
+
     def update(self):
         game_state = get_state()
         
-        # Check if game has started
+        # Bắt đầu trận nếu server báo start
         if game_state.get_started():
             self.done = True
             self.next = "battle"
         
-        # Update status based on players ready
+        # Trạng thái
         players = game_state.get_players()
         if len(players) < 2:
-            self.status_message = "Waiting for second player..."
+            self.status_message = "Waiting for the second player..."
         elif self.ready_sent:
-            self.status_message = "Sent ready status, waiting for opponent..."
+            ready_count = game_state.get_ready_count()
+            self.status_message = f"Ready ({ready_count}/2)"
+        
+        # Lỗi
+        error = game_state.get_last_error()
+        if error:
+            self.error_message = error
 
     def draw(self):
         self.screen.fill((30, 30, 60))
 
         # Title
-        title = self.font.render(f"Ship layout - {self.username}", True, (255, 255, 255))
+        title = self.font.render(f"Setup Your Ships - {self.username}", True, (255, 255, 255))
         self.screen.blit(title, (250, 30))
 
-        # Grid
+        # Lưới
         for row in range(self.grid_size):
             for col in range(self.grid_size):
                 rect = pygame.Rect(
@@ -185,45 +199,46 @@ class SetupScreen:
                 )
                 pygame.draw.rect(self.screen, (100, 150, 200), rect, 1)
 
-        # Ships
-        # Ships
+        # Vẽ tàu (ảnh) — KHÔNG viền
         for ship in self.ships:
-            self.screen.blit(ship["image"], ship["rect"].topleft)
+            self.screen.blit(ship["image"], ship["rect"])
 
-        # Instructions
+        # Hướng dẫn
         instructions = [
             "Drag and drop ships onto the grid",
             f"Place all {len(self.ships)} ships to get ready"
         ]
-        
         for i, instruction in enumerate(instructions):
             text = self.small_font.render(instruction, True, (200, 200, 200))
             self.screen.blit(text, (450, 200 + i * 25))
 
-        # Ready button (only enabled if all ships are placed)
+        # Ready button
         all_placed = all(ship["placed"] for ship in self.ships)
         if all_placed and not self.ready_sent:
             self.ready_button.color = (0, 150, 0)
-            self.ready_button.text = "Ready"
         elif self.ready_sent:
             self.ready_button.color = (100, 100, 100)
-            self.ready_button.text = "Ready"
         else:
             self.ready_button.color = (100, 100, 100)
-            self.ready_button.text = "Place all ships"
-
+        
         self.ready_button.draw(self.screen)
+        self.back_button.draw(self.screen)
 
-        # Status message
+        # Status & error
         if self.status_message:
             status_text = self.small_font.render(self.status_message, True, (255, 255, 0))
             status_rect = status_text.get_rect(center=(400, 570))
             self.screen.blit(status_text, status_rect)
         
-        # Game state info
+        if self.error_message:
+            error_text = self.small_font.render(self.error_message, True, (255, 0, 0))
+            error_rect = error_text.get_rect(center=(400, 540))
+            self.screen.blit(error_text, error_rect)
+        
+        # Thông tin người chơi
         game_state = get_state()
         players = game_state.get_players()
-        if len(players) > 0:
+        if players:
             player_info = self.small_font.render(f"Players: {', '.join(players)}", True, (150, 150, 150))
             self.screen.blit(player_info, (50, 60))
 
