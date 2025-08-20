@@ -21,14 +21,15 @@ class SetupScreen:
         self.grid_origin = (50, 100)
 
         # Predefined ships (simplified - just rectangles with colors)
+        # Predefined ships (giờ dùng ảnh thay vì màu)
         self.ships_data = [
-            {"length": 2, "color": (255, 100, 100)},
-            {"length": 3, "color": (100, 255, 100)},
-            {"length": 3, "color": (100, 100, 255)},
-            {"length": 4, "color": (255, 255, 100)},
-            {"length": 5, "color": (255, 100, 255)},
+            {"length": 2, "image": "images/image1.png"},
+            {"length": 3, "image": "images/image2.png"},
+            {"length": 3, "image": "images/image3.png"},
+            {"length": 4, "image": "images/image4.png"},
+            {"length": 5, "image": "images/image5.png"},
         ]
-        
+
         self.ships = []
         start_x = self.grid_origin[0] + self.grid_size * self.cell_size + 50
         start_y = 100
@@ -36,14 +37,19 @@ class SetupScreen:
 
         for idx, ship_data in enumerate(self.ships_data):
             length = ship_data["length"]
-            color = ship_data["color"]
-            rect = pygame.Rect(start_x, start_y + idx * (self.cell_size + gap), 
-                             length * self.cell_size, self.cell_size)
+            img_path = ship_data["image"]
+            # Load image
+            raw_img = pygame.image.load(img_path).convert_alpha()
+            # Scale theo chiều dài tàu (ngang)
+            img = pygame.transform.scale(raw_img, (length * self.cell_size, self.cell_size))
+
+            rect = img.get_rect()
+            rect.topleft = (start_x, start_y + idx * (self.cell_size + gap))
 
             self.ships.append({
                 "rect": rect,
                 "length": length,
-                "color": color,
+                "image": img,
                 "placed": False,
                 "grid_pos": None,
                 "original_pos": (rect.x, rect.y)
@@ -180,9 +186,9 @@ class SetupScreen:
                 pygame.draw.rect(self.screen, (100, 150, 200), rect, 1)
 
         # Ships
+        # Ships
         for ship in self.ships:
-            pygame.draw.rect(self.screen, ship["color"], ship["rect"])
-            pygame.draw.rect(self.screen, (255, 255, 255), ship["rect"], 2)
+            self.screen.blit(ship["image"], ship["rect"].topleft)
 
         # Instructions
         instructions = [

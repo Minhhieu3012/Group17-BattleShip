@@ -18,7 +18,6 @@ class BattleScreen:
         self.my_grid_size = 10
         self.cell_size = 30
         self.my_origin = (80, 120)
-
         # Grid của đối thủ
         self.enemy_origin = (450, 120)
         
